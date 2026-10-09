@@ -1,0 +1,47 @@
+name: Release firmware
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.event.created
+    uses: ./.github/workflows/build-firmware.yml
+
+  release:
+    needs: build
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Download firmware
+        uses: actions/download-artifact@v8
+        with:
+          name: MailboxMotion.zip
+          path: firmware
+          skip-decompress: true
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          test -s firmware/MailboxMotion.zip
+          gh release create "$RELEASE_TAG" firmware/MailboxMotion.zip \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --title "$RELEASE_TAG" \
+            --generate-notes

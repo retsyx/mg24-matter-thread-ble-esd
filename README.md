@@ -15,6 +15,28 @@ Power consumption is to be measured shortly.
 
 Alternatively, you can cobble together your own setup.
 
+## Downloading the Firmware
+
+### Dependencies
+
+Install OpenOCD with MG24 support to be able to flash the board.
+
+### Download
+
+Download the latest released [firmware](https://github.com/retsyx/amity/releases/latest/download/MailboxMotion.zip). Unzip it.
+
+From this project directory. Find the device serial number:
+
+```sh
+python3 scripts/find-serial.py
+```
+
+Flash the HEX file:
+
+```sh
+python3 scripts/flash.py --serial <serial> --image <path to extracted HEX file>
+```
+
 ## Building
 
 ### Dependencies

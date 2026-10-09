@@ -2,8 +2,11 @@ name: Build firmware
 
 on:
   push:
+    branches:
+      - '**'
   pull_request:
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
@@ -21,7 +24,7 @@ jobs:
 
     steps:
       - name: Check out source
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
 
@@ -41,7 +44,7 @@ jobs:
           echo "$tools_dir" >> "$GITHUB_PATH"
 
       - name: Cache SDK and build tools
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        uses: actions/cache@v6
         with:
           path: ~/.silabs/slt
           key: slt-${{ env.SLT_VERSION }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/build.py', '.github/workflows/build-firmware.yml') }}
@@ -67,20 +70,25 @@ jobs:
           export LD_LIBRARY_PATH="$python_package/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
           python3 scripts/build.py
 
+      - name: Package firmware
+        working-directory: build
+        run: |
+          for image in MailboxMotion MailboxMotion.hex MailboxMotion.bin MailboxMotion.map; do
+            test -s "$image"
+          done
+          zip MailboxMotion.zip MailboxMotion MailboxMotion.hex MailboxMotion.bin MailboxMotion.map
+
       - name: Upload firmware
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@v7
         with:
-          name: MailboxMotion-${{ github.sha }}
+          name: MailboxMotion.zip
+          archive: false
           if-no-files-found: error
-          path: |
-            build/MailboxMotion
-            build/MailboxMotion.hex
-            build/MailboxMotion.bin
-            build/MailboxMotion.map
+          path: build/MailboxMotion.zip
 
       - name: Upload generation logs on failure
         if: failure()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@v7
         with:
           name: generation-logs-${{ github.sha }}
           include-hidden-files: true
