@@ -1,0 +1,28 @@
+# OS, editor, and local agent settings
+.DS_Store
+.vscode/
+.codex/
+.cache/
+
+# Firmware build outputs and local CMake state
+# cmake_gcc/ contains the maintained build graph.
+build/
+autogen/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+CMakeUserPresets.json
+compile_commands.json
+
+# SLC generator arguments contain absolute paths to the installed SDK.
+/config/**/slc_args.json
+
+# Python caches and local environments
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Downloaded managed dependencies
+managed_components/

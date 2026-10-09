@@ -1,0 +1,194 @@
+{
+  "availability_checked_on": "2026-10-05",
+  "parts": [
+    {
+      "references": [
+        "U1"
+      ],
+      "quantity": 1,
+      "value": "XIAO MG24",
+      "footprint": "Board:XIAO_MG24_SMD",
+      "manufacturer": "Seeed Studio",
+      "mpn": "102010590",
+      "datasheet_url": "https://files.seeedstudio.com/wiki/XIAO_MG24/Getting_Start/XIAO_MG24_SCH.pdf",
+      "datasheet_file": "datasheets/seeed-xiao-mg24-schematic.pdf",
+      "supplier": "Seeed Studio",
+      "supplier_part_number": "102010590",
+      "purchase_url": "https://www.seeedstudio.com/Seeed-Studio-XIAO-MG24-p-6247.html",
+      "stock_on_check": "",
+      "assembly": "SMD reflow",
+      "notes": "Standard XIAO MG24, headers not soldered. Solder 14 edge contacts and underside BAT+ pad 31 / BAT- pad 32 to carrier; other underside contacts are omitted. USB faces the carrier USB label. Native firmware measures battery voltage through the module onboard switched PD3/PD4 divider. Module identity verified from Seeed sources on 2026-10-06; inventory was not rechecked.",
+      "on_board": true,
+      "purchased": true,
+      "properties": {},
+      "availability_checked_on": ""
+    },
+    {
+      "references": [
+        "U2"
+      ],
+      "quantity": 1,
+      "value": "BMA400",
+      "footprint": "Board:LGA-12_2x2mm_P0.5mm",
+      "manufacturer": "Bosch Sensortec",
+      "mpn": "BMA400",
+      "datasheet_url": "https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bma400-ds000.pdf",
+      "datasheet_file": "datasheets/bosch-bma400.pdf",
+      "supplier": "LCSC",
+      "supplier_part_number": "C437655",
+      "purchase_url": "https://www.lcsc.com/product-detail/C437655.html",
+      "stock_on_check": 110,
+      "assembly": "SMD reflow",
+      "notes": "Bare LGA-12, 2x2mm; I2C address 0x14; align pin 1. LCSC listed stock; Bosch franchise status was not verified. DigiKey 828-1081-1-ND and Mouser 262-BMA400 showed no stock on the check date.",
+      "on_board": true,
+      "purchased": true,
+      "properties": {
+        "I2C address": "0x14"
+      }
+    },
+    {
+      "references": [
+        "J1"
+      ],
+      "quantity": 1,
+      "value": "JST PH 2.0mm horizontal 2-pin battery connector",
+      "footprint": "Board:JST_PH_S2B-PH-K_1x02_P2.00mm_Horizontal",
+      "manufacturer": "JST",
+      "mpn": "S2B-PH-K-S(LF)(SN)",
+      "datasheet_url": "https://www.jst-mfg.com/product/pdf/eng/ePH.pdf",
+      "datasheet_file": "datasheets/jst-ph.pdf",
+      "supplier": "DigiKey",
+      "supplier_part_number": "455-1719-ND",
+      "purchase_url": "https://www.digikey.com/en/products/detail/jst-sales-america-inc/S2B-PH-K-S/926626",
+      "stock_on_check": 644136,
+      "assembly": "Through-hole",
+      "notes": "Horizontal/right-angle PH 2.00mm pitch, two positions; opening faces the bottom board edge. Pin 1 GND negative; pin 2 VBAT positive. DigiKey displays the shortened MPN S2B-PH-K-S; LF/SN finish suffix is documented by JST.",
+      "on_board": true,
+      "purchased": true,
+      "properties": {}
+    },
+    {
+      "references": [
+        "R1",
+        "R2"
+      ],
+      "quantity": 2,
+      "value": "10k",
+      "footprint": "Board:R_0603_1608Metric",
+      "manufacturer": "Panasonic Industry",
+      "mpn": "ERJ-3EKF1002V",
+      "datasheet_url": "https://industrial.panasonic.com/cdbs/www-data/pdf/RDA0000/AOA0000C304.pdf",
+      "datasheet_file": "datasheets/panasonic-erj-thick-film.pdf",
+      "supplier": "DigiKey",
+      "supplier_part_number": "P10.0KHCT-ND",
+      "purchase_url": "https://www.digikey.com/en/products/detail/panasonic-industry/ERJ-3EKF1002V/198102",
+      "stock_on_check": 2918667,
+      "assembly": "SMD 0603",
+      "notes": "10kohm, 1%, 0.1W, 0603 (1608 metric); I2C pullups to 3V3. Stock figure came from a supplier page cached approximately three weeks before the check date.",
+      "on_board": true,
+      "purchased": true,
+      "properties": {
+        "Tolerance": "1%",
+        "Power": "0.1W"
+      }
+    },
+    {
+      "references": [
+        "C1",
+        "C2"
+      ],
+      "quantity": 2,
+      "value": "100nF",
+      "footprint": "Board:C_0603_1608Metric",
+      "manufacturer": "KEMET",
+      "mpn": "C0603C104K5RACTU",
+      "datasheet_url": "https://yageogroup.com/content/datasheet/asset/file/KEM_C1002_X7R_SMD",
+      "datasheet_file": "datasheets/kemet-x7r-smd.pdf",
+      "supplier": "DigiKey",
+      "supplier_part_number": "399-C0603C104K5RACTUCT-ND",
+      "purchase_url": "https://www.digikey.com/en/products/detail/kemet/C0603C104K5RACTU/1465623",
+      "stock_on_check": 4862323,
+      "assembly": "SMD 0603",
+      "notes": "100nF, 50V, X7R, 10%, 0603 (1608 metric); C1 VDDIO bypass and C2 VDD bypass.",
+      "on_board": true,
+      "purchased": true,
+      "properties": {
+        "Tolerance": "10%",
+        "Voltage": "50V",
+        "Dielectric": "X7R"
+      }
+    },
+    {
+      "references": [
+        "C3"
+      ],
+      "quantity": 1,
+      "value": "1uF",
+      "footprint": "Board:C_0603_1608Metric",
+      "manufacturer": "KEMET",
+      "mpn": "C0603C105K4RACTU",
+      "datasheet_url": "https://yageogroup.com/content/datasheet/asset/file/KEM_C1002_X7R_SMD",
+      "datasheet_file": "datasheets/kemet-x7r-smd.pdf",
+      "supplier": "DigiKey",
+      "supplier_part_number": "399-C0603C105K4RACTUCT-ND",
+      "purchase_url": "https://www.digikey.com/en/products/detail/kemet/C0603C105K4RACTU/2199788",
+      "stock_on_check": 3654352,
+      "assembly": "SMD 0603",
+      "notes": "1uF, 16V, X7R, 10%, 0603 (1608 metric); 3V3 bulk bypass.",
+      "on_board": true,
+      "purchased": true,
+      "properties": {
+        "Tolerance": "10%",
+        "Voltage": "16V",
+        "Dielectric": "X7R"
+      }
+    },
+    {
+      "references": [
+        "External battery"
+      ],
+      "quantity": 1,
+      "value": "Protected 1S LiPo, 500mAh, 3.7V nominal, 4.2V maximum; plug polarity reversal required",
+      "footprint": "",
+      "manufacturer": "Adafruit Industries",
+      "mpn": "1578",
+      "datasheet_url": "https://cdn-shop.adafruit.com/product-files/1578/Datasheet.pdf",
+      "datasheet_file": "datasheets/adafruit-1578-battery.pdf",
+      "supplier": "DigiKey",
+      "supplier_part_number": "1528-1841-ND",
+      "purchase_url": "https://www.digikey.com/en/products/detail/adafruit-industries-llc/1578/5054539",
+      "stock_on_check": 3086,
+      "assembly": "External assembly; plug polarity reversal required",
+      "notes": "Protected rechargeable 500mAh pack with JST PH 2.0mm plug; included specification permits up to 1C (500mA) charging, exceeding the XIAO MG24 nominal 200mA charger. Stock plug polarity is opposite to carrier J1. Use a polarity-reversing adapter or correctly repinned connector: battery negative to J1 pin 1, positive to pin 2. Verify final plug polarity before connection. Keep pack away from antenna.",
+      "on_board": false,
+      "purchased": true,
+      "properties": {
+        "Capacity": "500mAh",
+        "Nominal voltage": "3.7V",
+        "Charge voltage": "4.2V"
+      }
+    },
+    {
+      "references": [
+        "H1",
+        "H2"
+      ],
+      "quantity": 2,
+      "value": "2.2mm mounting hole",
+      "footprint": "Board:MountingHole_2.2mm_M2",
+      "manufacturer": "",
+      "mpn": "",
+      "datasheet_url": "",
+      "datasheet_file": "",
+      "supplier": "",
+      "supplier_part_number": "",
+      "purchase_url": "",
+      "stock_on_check": "",
+      "assembly": "PCB feature only",
+      "notes": "PCB holes, not purchased components; enclosure-specific M2 hardware is not included.",
+      "on_board": false,
+      "purchased": false,
+      "properties": {}
+    }
+  ]
+}
