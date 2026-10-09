@@ -17,7 +17,12 @@ Alternatively, you can cobble together your own setup.
 
 ## Building
 
-Install the Silicon Lab build toolchain in the default installation path - `~/.silabs`.
+### Dependencies
+
+* Simplicity SDK must be installed with Matter support and in PATH so that the `slt` command is invocable.
+* OpenOCD with MG24 support.
+
+### Build
 
 Run from this project directory:
 
@@ -31,19 +36,6 @@ To run the automated tests:
 python3 scripts/test-driver.py
 ```
 
-### Dependencies
-
-| Package | Version |
-| --- | --- |
-| Simplicity SDK | `2025.6.2` |
-| Silicon Labs Matter extension | `2.7.0` |
-| GNU Arm Embedded compiler | `12.2.rel1` |
-| CMake | `3.30.2` |
-| Ninja | `1.12.1` |
-| ZAP data-model generator | `v2025.10.23` |
-| Studio base package, including SLC | `6.0.0-171` |
-| Silicon Labs Python package | `3.10` |
-| OpenOCD | Build with MG24 support |
 
 Useful build options:
 
