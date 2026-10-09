@@ -23,7 +23,7 @@ Install OpenOCD with MG24 support to be able to flash the board.
 
 ### Download
 
-Download the latest released [firmware](https://github.com/retsyx/amity/releases/latest/download/MailboxMotion.zip). Unzip it.
+Download the latest released [firmware](https://github.com/retsyx/mg24-matter-thread-ble-esd/releases/latest/download/MailboxMotion.zip). Unzip it.
 
 From this project directory. Find the device serial number:
 
