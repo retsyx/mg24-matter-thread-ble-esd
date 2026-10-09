@@ -1,0 +1,88 @@
+name: Build firmware
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    env:
+      SLT_VERSION: '1.2.2'
+      SLT_SHA256: b0757c79d5dd03f41ff3b2bf2074d918e5e4d5c56835506a2887d5b4275384dc
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Run host tests
+        run: python3 scripts/test-driver.py
+
+      - name: Install Silicon Labs Tool
+        run: |
+          tools_dir="$RUNNER_TEMP/slt"
+          mkdir -p "$tools_dir"
+          curl --fail --silent --show-error --location --retry 3 \
+            "https://www.silabs.com/documents/public/software/slt-cli-${SLT_VERSION}-linux-x64.zip" \
+            -o "$tools_dir/slt.zip"
+          printf '%s  %s\n' "$SLT_SHA256" "$tools_dir/slt.zip" | sha256sum --check -
+          unzip -q "$tools_dir/slt.zip" -d "$tools_dir"
+          chmod +x "$tools_dir/slt"
+          echo "$tools_dir" >> "$GITHUB_PATH"
+
+      - name: Cache SDK and build tools
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ~/.silabs/slt
+          key: slt-${{ env.SLT_VERSION }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/build.py', '.github/workflows/build-firmware.yml') }}
+
+      - name: Install pinned SDK and build tools
+        # Keep these versions in sync with scripts/build.py.
+        run: |
+          slt --non-interactive install --no-lock --check-updates=false \
+            simplicity-sdk/2025.6.2 \
+            matter_extension/2.7.0 \
+            gcc-arm-none-eabi/12.2.rel1 \
+            cmake/3.30.2 \
+            ninja/1.12.1 \
+            zap/2026.08.24 \
+            slc-cli/6.0.22 \
+            java21/21.0.6 \
+            python/3.10.3
+
+      - name: Build firmware
+        run: |
+          # The bundled Python extensions need its OpenSSL and libffi libraries.
+          python_package="$(slt where python/3.10.3 --ignore-slconf)"
+          export LD_LIBRARY_PATH="$python_package/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          python3 scripts/build.py
+
+      - name: Upload firmware
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: MailboxMotion-${{ github.sha }}
+          if-no-files-found: error
+          path: |
+            build/MailboxMotion
+            build/MailboxMotion.hex
+            build/MailboxMotion.bin
+            build/MailboxMotion.map
+
+      - name: Upload generation logs on failure
+        if: failure()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: generation-logs-${{ github.sha }}
+          include-hidden-files: true
+          if-no-files-found: ignore
+          path: build/slc/.slc-state/*.log
