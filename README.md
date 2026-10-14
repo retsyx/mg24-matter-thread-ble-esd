@@ -41,8 +41,27 @@ python3 scripts/flash.py --serial <serial> --image <path to extracted HEX file>
 
 ### Dependencies
 
-* Simplicity SDK must be installed with Matter support and in PATH so that the `slt` command is invocable.
-* OpenOCD with MG24 support.
+* Python.
+* Silicon Labs Tool (SLT), available as `slt` in PATH.
+* The SLT-managed SDK and build tools at the exact versions below.
+* OpenOCD with MG24 support for flashing.
+
+Install the package versions required by [scripts/build.py](scripts/build.py):
+
+```sh
+slt install \
+  simplicity-sdk/2025.6.2 \
+  matter_extension/2.7.0 \
+  gcc-arm-none-eabi/12.2.rel1 \
+  cmake/3.30.2 \
+  ninja/1.12.1 \
+  zap/2026.08.24 \
+  slc-cli/6.0.22 \
+  java21/21.0.6 \
+  python/3.10.3
+```
+
+The build script discovers installed packages through SLT.
 
 ### Build
 
@@ -51,6 +70,8 @@ Run from this project directory:
 ```sh
 python3 scripts/build.py
 ```
+
+The automated tests also require native host C and C++ compilers with C99 and C++17 support, such as Clang or GCC. The test driver discovers compilers in PATH; you can select them with the `CC` and `CXX` environment variables. These host compilers are separate from the firmware's ARM cross compiler. For more information, see [tests/README.txt](tests/README.txt).
 
 To run the automated tests:
 
@@ -70,12 +91,12 @@ python3 scripts/build.py --generate
 
 The default profile disables the USB UART initializer, leaves PA8/PA9 disconnected, omits the Matter shell and Thread CLI, keeps the application status LED off, and disables EM2 debugging. It also removes SWD routing and its pulls after a **five-second startup recovery window**; a later debugger connection requires the physical XIAO reset switch or a power cycle, followed by connection during that window.
 
-* `--console` restores USB UART, the shell, Thread CLI, status LEDs and EM2 debugging, and keeps SWD available. UART reception holds the MCU in EM1 or a more active mode, so use this profile for diagnostics rather than battery-current comparisons.
+* `--console` restores USB UART, the shell, Thread CLI and EM2 debugging, and keeps SWD available. UART reception holds the MCU in EM1 or a more active mode, so use this profile for diagnostics rather than battery-current comparisons.
 * `--battery` enables reporting for a battery that has actually been fitted. Without it, the charger output is never interpreted as evidence of a battery.
 
 The build produces `build/MailboxMotion` (ELF), `build/MailboxMotion.hex`, `build/MailboxMotion.bin`, and a linker map.
 
-Silicon Labs platform files are genereated from [MailboxMotion.slcp](MailboxMotion.slcp) and the maintained `config/` inputs using Studio's bundled SLC. The Matter data model is generated from [mailbox-motion.zap](config/common/mailbox-motion.zap) with ZAP.
+Silicon Labs platform files are generated from [MailboxMotion.slcp](MailboxMotion.slcp) and the maintained `config/` inputs using Studio's bundled SLC. The Matter data model is generated from [mailbox-motion.zap](config/common/mailbox-motion.zap) with ZAP.
 
 ## Flashing and Monitoring
 
@@ -120,7 +141,7 @@ An uncommissioned device opens a **15-minute commissioning window at boot**. Wit
 
 With your favorite Matter commissioner (HomeKit, etc.) add the accessory.
 
-This project uses development commissioning credentials, so the QR code is always the one below.
+The QR code below is for an unprovisioned device using this project's development commissioning defaults.
 
 ![matter provisioning QR code](matter_qr.png)
 
@@ -134,11 +155,13 @@ Commissioning values use the defaults in [CHIPProjectConfig.h](include/CHIPProje
 | Vendor ID | `0xFFF1` |
 | Product ID | `0x8004` |
 
+The test commissioning credentials are fallbacks. Provisioned commissioning data in nonvolatile memory takes precedence over those defaults, and firmware configuration changes can also change the pairing payload. Resetting the MCU preserves stored commissioning data. If credentials have been provisioned or changed, use the device's actual QR or manual pairing code. A `--console` build prints the current manual pairing code for an uncommissioned device at boot and after a successful `mailbox commission` request.
+
 ## Details
 
 ### Serial Diagnostics
 
-With `--console`, the application uses the XIAO's USB serial bridge at **115200 baud, 8 data bits, no parity, one stop bit**. The application UART is EUSART0 on PA8/PA9. The default profile leaves those pins disconnected and supplies no UART shell or output; see [hardware details](docs/hardware.md#usb-serial-and-board-controls).
+With `--console`, the application uses the XIAO's USB serial bridge at **115200 baud, 8 data bits, no parity, one stop bit**. The application UART is EUSART0 on PA8/PA9. The default profile leaves those pins disconnected and supplies no UART shell or output.
 
 At the Matter shell prompt:
 
@@ -154,47 +177,13 @@ mailbox commission
 * `battery` requests an immediate battery attribute update; values remain unknown in the default build.
 * `commission` queues a request to reopen commissioning on an uncommissioned device.
 
-
-### BMA400 Motion configuration
-
-[Bma400Motion.cpp](src/bma400/Bma400Motion.cpp) applies the followsing sensor configuration:
-
-| Setting | Value |
-| --- | --- |
-| Resting power mode | Low power |
-| Wake-up axes | X, Y, Z |
-| Wake-up reference update | One time after initialization |
-| Wake-up sample count | 8 |
-| Wake-up threshold | Register value 4 |
-| Wake-up reference X / Y / Z | 255 / 255 / 255 |
-| Wake-up output | INT1, push-pull, active high |
-| Automatic low-power timeout | 400 units, approximately one second |
-| Generic interrupt 2 | Activity on any axis; threshold 5; duration 1 |
-| Generic interrupt 2 data / reference | Filter 2; update reference every time |
-| Generic interrupt 2 hysteresis | 48 mg |
-| Generic interrupt 2 reference X / Y / Z | 0 / 0 / 512 |
-
-
 ### Antenna Selection
 
 Before starting BLE or Thread, [main.cpp](src/main.cpp) drives **PB5 high** to power the RF switch and **PB4 low** to select the onboard antenna. See Seeed's [antenna-selection instructions](https://wiki.seeedstudio.com/xiao_mg24_bluetooth/#switching-between-built-in-and-external-antennas). The application also switches off the optional Sense IMU supply on PD5 and microphone enable on PC8, keeps the battery divider off until sampling, and sends the unused onboard Puya flash a deep-power-down command. The RF switch remains powered for radio operation.
 
-### Board Clocks
-
-The native clock configuration uses the XIAO's crystals and load settings:
-
-| Clock setting | Value |
-| --- | --- |
-| HFXO frequency / CTUNE | 39 MHz / 95 |
-| LFXO frequency / CTUNE | 32.768 kHz / 44 |
-| LFXO enabled | Yes |
-| Default low-frequency clock source | LFXO |
-
-These values are configured in [sl_clock_manager_oscillator_config.h](config/sl_clock_manager_oscillator_config.h) and [sl_clock_manager_tree_config.h](config/sl_clock_manager_tree_config.h). The Silicon Labs-authored [upstream XIAO MG24 board definition](https://github.com/zephyrproject-rtos/zephyr/blob/main/boards/seeed/xiao_mg24/xiao_mg24.dts) supplies the board-specific crystal settings.
-
 ### Battery Measurement
 
-The XIAO MG24 has an onboard switched battery divider. **PD3 enables it; PD4 measures its midpoint.** The schematic specifies equal 10 kΩ resistors, so VBAT is twice the sensed voltage. [BatteryMonitor.cpp](../src/BatteryMonitor.cpp) enables the path, allows it to settle, samples IADC0 using the internal reference, and disables the path afterwards. See the [power circuit in the Seeed schematic](https://files.seeedstudio.com/wiki/XIAO_MG24/Getting_Start/XIAO_MG24_SCH.pdf).
+The XIAO MG24 has an onboard switched battery divider. **PD3 enables it; PD4 measures its midpoint.** The schematic specifies equal 10 kΩ resistors, so VBAT is twice the sensed voltage. [BatteryMonitor.cpp](src/BatteryMonitor.cpp) enables the path, allows it to settle, samples IADC0 using the internal reference, and disables the path afterwards. See the [power circuit in the Seeed schematic](https://files.seeedstudio.com/wiki/XIAO_MG24/Getting_Start/XIAO_MG24_SCH.pdf).
 
 Enable reporting with `python3 scripts/build.py --battery` only when a rechargeable battery is fitted. A voltage at VBAT does not prove that a cell is attached: USB powers the charger circuit. The default reports unknown voltage and percentage with battery presence false.
 
