@@ -52,16 +52,30 @@ jobs:
       - name: Install pinned SDK and build tools
         # Keep these versions in sync with scripts/build.py.
         run: |
-          slt --non-interactive install --no-lock --check-updates=false \
-            simplicity-sdk/2025.6.2 \
-            matter_extension/2.7.0 \
-            gcc-arm-none-eabi/12.2.rel1 \
-            cmake/3.30.2 \
-            ninja/1.12.1 \
-            zap/2026.08.24 \
-            slc-cli/6.0.22 \
-            java21/21.0.6 \
+          packages=(
+            simplicity-sdk/2025.6.2
+            matter_extension/2.7.0
+            gcc-arm-none-eabi/12.2.rel1
+            cmake/3.30.2
+            ninja/1.12.1
+            slc-cli/6.0.22
+            java21/21.0.6
             python/3.10.3
+          )
+          slt --non-interactive install --no-lock --check-updates=false "${packages[@]}"
+
+          # SLC can install a newer ZAP dependency into the same unversioned directory.
+          # Install our pinned ZAP after SLC and its dependencies have finished.
+          zap_package=zap/2026.09.18
+          slt --non-interactive install --no-lock --check-updates=false --force "$zap_package"
+
+          for package in "${packages[@]}" "$zap_package"; do
+            location="$(slt where "$package" --ignore-slconf)"
+            if ! test -d "$location"; then
+              echo "::error::SLT returned an invalid package directory for $package: $location"
+              exit 1
+            fi
+          done
 
       - name: Build firmware
         run: |
