@@ -9,6 +9,8 @@ mocked native Silicon Labs I2CSPM and sleeptimer declarations. It checks bus
 addressing, initialization configuration, injected NACKs at every init transfer,
 no hidden retries, chip identity, signed samples, and failed interrupt reads.
 It also checks that interrupt reads introduce no sleeptimer delays.
+Power configuration checks cover wakeup-to-INT1 mapping with automatic normal
+mode disabled, unused FIFO read circuitry disabled, and restoration on rearm.
 
 The mock checks software behavior only. It does not establish hardware wiring,
 physical interrupt timing, sensor motion response, MCU power consumption,

@@ -8,7 +8,9 @@
 
 // Native Silicon Labs transport for the mailbox's external BMA400.
 // The caller initializes I2CSPM and the sleeptimer before calling begin(),
-// and owns retry timing. Call these methods from task context, never an ISR.
+// and owns retry timing. Motion drives INT1 while the sensor stays in low power;
+// call begin() again when rearming to capture a fresh orientation reference.
+// Call these methods from task context, never an ISR.
 class Bma400Motion
 {
 public:

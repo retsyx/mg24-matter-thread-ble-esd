@@ -32,9 +32,47 @@
 #include <lib/support/logging/CHIPLogging.h>
 #include <platform/silabs/tracing/SilabsTracingMacros.h>
 
+#ifndef MAILBOX_RADIO_GATED_SWITCH
+#define MAILBOX_RADIO_GATED_SWITCH 1
+#endif
+#if MAILBOX_RADIO_GATED_SWITCH
+#include "em_core.h"
+#include "em_prs.h"
+#endif
+
 using TimeTraceOperation = chip::Tracing::Silabs::TimeTraceOperation;
 
 namespace {
+void InitRadioSwitch()
+{
+    GPIO_PinModeSet(gpioPortB, 4, gpioModePushPull, 0); // onboard antenna
+    GPIO_PinModeSet(gpioPortB, 5, gpioModePushPull, 1); // FM8625H supply
+#if MAILBOX_RADIO_GATED_SWITCH
+    // Use hardware radio activity for both Thread and BLE.
+    // MCU sleep callbacks do not describe every autonomous radio operation.
+    // RAC_ACTIVE is broader than PAEN/LNAEN, but its lead time still needs
+    // board validation against the FM8625H's maximum 10 us supply startup.
+    CMU_ClockEnable(cmuClock_PRS, true);
+    CORE_DECLARE_IRQ_STATE;
+    CORE_ENTER_CRITICAL();
+    const int channel = PRS_GetFreeChannel(prsTypeAsync);
+    // Only asynchronous channels 0..5 can drive port B on the MG24. Existing
+    // SDK reservations are already visible here; never overwrite a channel.
+    if (channel >= 0 && channel <= 5)
+    {
+        PRS_ConnectSignal(static_cast<unsigned>(channel), prsTypeAsync, prsSignalRACL_ACTIVE);
+        PRS_PinOutput(static_cast<unsigned>(channel), prsTypeAsync, gpioPortB, 5);
+    }
+    CORE_EXIT_CRITICAL();
+    if (channel < 0 || channel > 5)
+    {
+        ChipLogError(AppServer, "No antenna-switch PRS channel; keeping RF switch powered");
+        return;
+    }
+    ChipLogProgress(AppServer, "Radio-gated antenna switch: PRS channel %d", channel);
+#endif
+}
+
 #if !MAILBOX_CONSOLE_KEEP_AWAKE
 constexpr uint32_t kDebugRecoveryMs = 5000;
 sl_sleeptimer_timer_handle_t sDebugRecoveryTimer{};
@@ -96,8 +134,7 @@ void app_init(void)
     SILABS_TRACE_BEGIN(chip::Tracing::Silabs::TimeTraceOperation::kMatterInit);
     // XIAO RF switch and unused Sense peripherals, before either radio starts.
     CMU_ClockEnable(cmuClock_GPIO, true);
-    GPIO_PinModeSet(gpioPortB, 5, gpioModePushPull, 1);
-    GPIO_PinModeSet(gpioPortB, 4, gpioModePushPull, 0);
+    InitRadioSwitch();
     GPIO_PinModeSet(gpioPortD, 5, gpioModePushPull, 0); // onboard IMU off
     GPIO_PinModeSet(gpioPortC, 8, gpioModePushPull, 0); // microphone off
     SleepUnusedFlash();

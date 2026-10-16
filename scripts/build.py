@@ -12,6 +12,8 @@ ROOT = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--battery', action='store_true', help='a LiPo is fitted; enable battery reports')
 parser.add_argument('--console', action='store_true', help='enable USB UART, shell, Thread CLI and EM2 debugging; keeps reception in EM1 (default: production with UART pins disconnected and RTT logging)')
+parser.add_argument('--radio-gated-switch', action=argparse.BooleanOptionalAction, default=True,
+                    help='power the antenna switch from radio-active PRS (default: enabled); --no-radio-gated-switch keeps it powered for comparison')
 parser.add_argument('--generate', action='store_true', help='force platform and Matter regeneration (normal builds generate automatically)')
 parser.add_argument('-j', '--jobs', type=int, default=min(os.cpu_count() or 4, 8))
 args = parser.parse_args()
@@ -47,5 +49,6 @@ subprocess.run([str(cmake), '-S', str(ROOT / 'cmake_gcc'), '-B', str(ROOT / 'bui
                 '-DGCC_PATH=' + str(gcc), '-DGCC_EXECUTABLE=' + str(gcc_executable),
                 '-DMAILBOX_BATTERY_INSTALLED=' + ('ON' if args.battery else 'OFF'),
                 '-DMAILBOX_CONSOLE_KEEP_AWAKE=' + ('ON' if args.console else 'OFF'),
+                '-DMAILBOX_RADIO_GATED_SWITCH=' + ('ON' if args.radio_gated_switch else 'OFF'),
                 '-DCMAKE_EXPORT_COMPILE_COMMANDS=ON'], env=env, check=True)
 subprocess.run([str(cmake), '--build', str(ROOT / 'build'), '-j', str(args.jobs)], env=env, check=True)

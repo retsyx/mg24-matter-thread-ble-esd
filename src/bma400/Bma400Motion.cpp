@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "Bma400Motion.h"
 
+#include "cmsis_os2.h"
 #include "sl_sleeptimer.h"
 
 int8_t Bma400Motion::begin(I2C_TypeDef *bus, uint8_t address)
@@ -74,55 +75,26 @@ int8_t Bma400Motion::configureMotion()
         return status;
     }
 
-    // Nonlatching is the reset default; state it explicitly to keep INT1
-    // behavior predictable. Motion automatically changes low-power to normal.
+    // The wakeup detector always runs in low-power mode and can drive INT1
+    // independently of auto-wakeup (Bosch datasheet, p. 21). Keep the sensor
+    // in low power during motion; AppTask resets it after the five-second
+    // occupancy pulse to capture a fresh one-time reference.
     bma400_int_enable interrupts[2] = {};
     interrupts[0].type = BMA400_LATCH_INT_EN;
     interrupts[0].conf = BMA400_DISABLE;
     interrupts[1].type = BMA400_AUTO_WAKEUP_EN;
-    interrupts[1].conf = BMA400_ENABLE;
+    interrupts[1].conf = BMA400_DISABLE;
     status = bma400_enable_interrupt(interrupts, 2, &mDevice);
     if (status != BMA400_OK)
     {
         return status;
     }
 
-    bma400_device_conf lowPower = {};
-    lowPower.type = BMA400_AUTO_LOW_POWER;
-    lowPower.param.auto_lp.auto_low_power_trigger = BMA400_AUTO_LP_TIME_RESET_EN;
-    lowPower.param.auto_lp.auto_lp_timeout_threshold = 400; // 400 * 2.5 ms = 1 s
-    status = bma400_set_device_conf(&lowPower, 1, &mDevice);
-    if (status != BMA400_OK)
-    {
-        return status;
-    }
-
-    // GEN2 resets the one-second low-power timer while the lid keeps moving.
-    // It is deliberately unmapped, so only the wakeup condition drives INT1.
-    bma400_sensor_conf generic = {};
-    generic.type = BMA400_GEN2_INT;
-    generic.param.gen_int.gen_int_thres = 5;
-    generic.param.gen_int.gen_int_dur = 1;
-    generic.param.gen_int.axes_sel = BMA400_AXIS_XYZ_EN;
-    generic.param.gen_int.data_src = BMA400_DATA_SRC_ACCEL_FILT_2;
-    generic.param.gen_int.criterion_sel = BMA400_ACTIVITY_INT;
-    generic.param.gen_int.evaluate_axes = BMA400_ANY_AXES_INT;
-    generic.param.gen_int.ref_update = BMA400_UPDATE_EVERY_TIME;
-    generic.param.gen_int.hysteresis = BMA400_HYST_48_MG;
-    generic.param.gen_int.int_thres_ref_x = 0;
-    generic.param.gen_int.int_thres_ref_y = 0;
-    generic.param.gen_int.int_thres_ref_z = 512;
-    generic.param.gen_int.int_chan = BMA400_UNMAP_INT_PIN;
-    status = bma400_set_sensor_conf(&generic, 1, &mDevice);
-    if (status != BMA400_OK)
-    {
-        return status;
-    }
-
-    bma400_int_enable genericEnable = {};
-    genericEnable.type = BMA400_GEN2_INT_EN;
-    genericEnable.conf = BMA400_ENABLE;
-    status = bma400_enable_interrupt(&genericEnable, 1, &mDevice);
+    // FIFO_PWR_CONFIG.fifo_read_disable saves 100 nA. The application reads
+    // only acceleration/status registers, so no FIFO read circuit is needed.
+    // Apply after every soft reset; the other bits in this register are reserved.
+    const uint8_t fifoReadDisable = 0x01;
+    status = bma400_set_regs(BMA400_REG_FIFO_READ_EN, &fifoReadDisable, 1, &mDevice);
     if (status != BMA400_OK)
     {
         return status;
@@ -190,8 +162,25 @@ BMA400_INTF_RET_TYPE Bma400Motion::writeRegisters(uint8_t reg, const uint8_t *da
 
 void Bma400Motion::delayMicroseconds(uint32_t period, void *)
 {
-    // Bosch requests minimum delays. Round upwards to the native sleeptimer's
-    // millisecond resolution, including its submillisecond register delays.
+    if (period == 0)
+    {
+        return;
+    }
+    if (osKernelGetState() == osKernelRunning)
+    {
+        const uint32_t frequency = osKernelGetTickFreq();
+        // Release the application task during reset/mode settling. A relative
+        // RTOS delay can lose almost one tick to the current tick's phase, so
+        // add a tick after rounding up to preserve Bosch's minimum delay.
+        const uint64_t ticks = (static_cast<uint64_t>(period) * frequency + 999999u) / 1000000u + 1u;
+        if (frequency != 0 && ticks < UINT32_MAX && osDelay(static_cast<uint32_t>(ticks)) == osOK)
+        {
+            return;
+        }
+    }
+
+    // Before the scheduler starts (or if it cannot block), keep the original
+    // sleeptimer fallback and round upwards to its millisecond resolution.
     uint32_t milliseconds = period / 1000 + (period % 1000 != 0);
     while (milliseconds != 0)
     {

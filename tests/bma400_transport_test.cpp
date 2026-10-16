@@ -3,8 +3,10 @@
 #include <cassert>
 #include <cstdio>
 #include <cstring>
+#include <vector>
 
 #include "Bma400Motion.h"
+#include "cmsis_os2.h"
 
 namespace
 {
@@ -14,6 +16,11 @@ bool wrongChip = false;
 unsigned transfers = 0;
 unsigned failAtTransfer = 0;
 unsigned delays = 0;
+osKernelState_t kernelState = osKernelRunning;
+uint32_t kernelTickFrequency = 1024;
+osStatus_t blockResult = osOK;
+std::vector<uint32_t> blockingTicks;
+std::vector<uint16_t> activeMilliseconds;
 uint8_t expectedAddress = 0x14;
 I2C_TypeDef *expectedBus = nullptr;
 
@@ -31,16 +38,38 @@ void checkConfiguration()
     assert(registers[0x2F] == 0xFD); // XYZ, 8 samples, one-time reference.
     assert(registers[0x30] == 4);
     assert(registers[0x31] == 255 && registers[0x32] == 255 && registers[0x33] == 255);
+    assert(registers[0x21] == 1 && registers[0x22] == 0 && registers[0x23] == 0); // Only wakeup mapped to INT1.
     assert(registers[0x24] == 0x02); // INT1 active-high push/pull.
-    assert(registers[0x2A] == 25 && registers[0x2B] == 8); // One-second auto LP.
-    assert(registers[0x2D] == 2); // Auto wakeup enabled.
-    assert(registers[0x1F] == 8 && registers[0x20] == 0); // GEN2, nonlatching.
+    assert(registers[0x29] == 1); // Unused FIFO read circuit powered down.
+    assert(registers[0x2A] == 0 && registers[0x2B] == 0); // No auto LP timer needed.
+    assert(registers[0x2C] == 0 && registers[0x2D] == 0); // Motion/timeout cannot switch to normal mode.
+    assert(registers[0x1F] == 0 && registers[0x20] == 0); // GEN2 disabled, nonlatching.
 }
 } // namespace
+
+osKernelState_t osKernelGetState(void)
+{
+    return kernelState;
+}
+
+uint32_t osKernelGetTickFreq(void)
+{
+    assert(kernelState == osKernelRunning);
+    return kernelTickFrequency;
+}
+
+osStatus_t osDelay(uint32_t ticks)
+{
+    assert(kernelState == osKernelRunning && ticks != 0);
+    blockingTicks.push_back(ticks);
+    ++delays;
+    return blockResult;
+}
 
 void sl_sleeptimer_delay_millisecond(uint16_t milliseconds)
 {
     assert(milliseconds != 0);
+    activeMilliseconds.push_back(milliseconds);
     ++delays;
 }
 
@@ -108,6 +137,7 @@ int main()
     }
     failAtTransfer = 0;
     assert(sensor.begin(&bus) == BMA400_OK && sensor.initialized());
+    checkConfiguration(); // Every reset/rearm must restore the power-saving settings.
 
     registers[0x0E] = 1;
     const unsigned delaysBeforeStatus = delays;
@@ -120,6 +150,7 @@ int main()
     bma400_sensor_data sample;
     assert(sensor.readSample(sample) == BMA400_OK);
     assert(sample.x == 2047 && sample.y == -2048 && sample.z == -1);
+    assert(delays == delaysBeforeStatus); // Sampling also needs no settling delay.
 
     // Regression: Bosch v1.5.8 decoded an uninitialized buffer on a failed
     // status read. The application must receive zero plus the I2C error.
@@ -130,6 +161,7 @@ int main()
     assert(status == 0 && transfers == beforeFailure + 1);
     assert(sensor.readSample(sample) == BMA400_E_COM_FAIL);
     assert(sample.x == 0 && sample.y == 0 && sample.z == 0);
+    assert(delays == delaysBeforeStatus); // Failed reads must not add delays/retries.
     nack = false;
 
     wrongChip = true;
@@ -140,5 +172,55 @@ int main()
     expectedAddress = 0x15;
     assert(sensor.begin(&bus, expectedAddress) == BMA400_OK && sensor.initialized());
     checkConfiguration();
+
+    // Bosch requests 5 ms reset, 5 ms startup, 10 ms normal-mode settling,
+    // and 40 ms low-power settling. Check their minimum real durations even
+    // when osDelay starts immediately before the next RTOS tick (worst phase).
+    constexpr uint32_t minimumMicroseconds[] = {5000, 5000, 10000, 40000};
+    for (uint32_t frequency : {100u, 1000u, 1024u, 32768u})
+    {
+        kernelTickFrequency = frequency;
+        blockingTicks.clear();
+        activeMilliseconds.clear();
+        assert(sensor.begin(&bus, expectedAddress) == BMA400_OK);
+        assert(blockingTicks.size() == 4 && activeMilliseconds.empty());
+        for (unsigned i = 0; i < 4; ++i)
+        {
+            const uint64_t required = static_cast<uint64_t>(minimumMicroseconds[i]) * frequency;
+            const uint64_t worstPhaseElapsed = static_cast<uint64_t>(blockingTicks[i] - 1) * 1000000u;
+            assert(worstPhaseElapsed >= required);
+            assert(worstPhaseElapsed - required < 1000000u); // At most one tick of rounding.
+        }
+    }
+
+    // Before the scheduler starts, and while it is locked, blocking is unsafe.
+    // Both paths must preserve the original sleeptimer settling delays.
+    for (osKernelState_t state : {osKernelInactive, osKernelReady, osKernelLocked})
+    {
+        kernelState = state;
+        blockingTicks.clear();
+        activeMilliseconds.clear();
+        assert(sensor.begin(&bus, expectedAddress) == BMA400_OK);
+        assert(blockingTicks.empty());
+        assert((activeMilliseconds == std::vector<uint16_t>{5, 5, 10, 40}));
+    }
+
+    // If the RTOS cannot accept a delay, do not skip the sensor's minimum wait.
+    kernelState = osKernelRunning;
+    kernelTickFrequency = 1024;
+    blockResult = osErrorResource;
+    blockingTicks.clear();
+    activeMilliseconds.clear();
+    assert(sensor.begin(&bus, expectedAddress) == BMA400_OK);
+    assert(blockingTicks.size() == 4);
+    assert((activeMilliseconds == std::vector<uint16_t>{5, 5, 10, 40}));
+    blockResult = osOK;
+
+    kernelTickFrequency = 0;
+    blockingTicks.clear();
+    activeMilliseconds.clear();
+    assert(sensor.begin(&bus, expectedAddress) == BMA400_OK);
+    assert(blockingTicks.empty());
+    assert((activeMilliseconds == std::vector<uint16_t>{5, 5, 10, 40}));
     puts("BMA400 mocked native transport regression checks passed");
 }

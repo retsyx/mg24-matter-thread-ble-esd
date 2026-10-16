@@ -4,6 +4,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_C_STANDARD 99)
 option(MAILBOX_CONSOLE_KEEP_AWAKE "Enable USB UART, shell and awake debugging" OFF)
 option(MAILBOX_BATTERY_INSTALLED "Report a fitted LiPo battery" OFF)
+option(MAILBOX_RADIO_GATED_SWITCH "Gate the antenna switch supply with radio activity" ON)
 foreach(path SDK_PATH MATTER_PATH)
   if(NOT IS_DIRECTORY "${${path}}")
     message(FATAL_ERROR "Set ${path} to the installed Silicon Labs package; scripts/build.py discovers it.")
@@ -11,6 +12,10 @@ foreach(path SDK_PATH MATTER_PATH)
 endforeach()
 include(platform_codegen.cmake)
 include(MailboxMotion.cmake)
+# Only the board initialization uses this option. Keep SDK and
+# protocol sources independent of it so A/B builds recompile only this file.
+set_property(SOURCE "../src/main.cpp" APPEND PROPERTY COMPILE_DEFINITIONS
+  "MAILBOX_RADIO_GATED_SWITCH=$<BOOL:${MAILBOX_RADIO_GATED_SWITCH}>")
 add_dependencies(slc platform_codegen)
 add_executable(MailboxMotion)
 set_property(TARGET MailboxMotion APPEND PROPERTY LINK_DEPENDS
