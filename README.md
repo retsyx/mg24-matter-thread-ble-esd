@@ -4,7 +4,7 @@ Implements a motion sensor with a Silicon Labs MG24 MCU and a Bosch BMA400 IMU -
 
 ## Power Consumption
 
-This setup seems to average 20µA at 4V from the battery when idling.
+Average power consumption for this setup is measured at approximately 20µA at 4V from the battery when idling.
 
 ## Requirements
 
